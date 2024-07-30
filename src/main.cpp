@@ -1,7 +1,10 @@
 #include <Arduino.h>
 #include <ESP32_CAN.h>
 #include <Adafruit_NeoPixel.h>
-
+#include <WiFi.h>
+#include <WiFiAP.h>
+#include <WebServer.h>
+#include <ESP2SOTA.h>
 
 #define LED_PIN 16
 #define NUM_OF_PINS 48
@@ -19,6 +22,12 @@ unsigned long tim = 0;
 unsigned long timeout = 0;
 unsigned long timeout_interrupt = 0;
 volatile int flag_interrupt = 0;
+
+
+const char* ssid = "ASSI_LART_T24";
+const char* password = "T24E_aut";
+WebServer server(80);
+
 
 TWAI_Interface CAN1(1000, 21, 22);
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_OF_PINS, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -41,6 +50,30 @@ void IRAM_ATTR ms_interrupt()
 
 void setup() 
 {
+  /***        --- Initiate access point and configure static ip addresss as 06.14.22.24 ---         ***/
+
+  WiFi.mode(WIFI_AP);  
+  WiFi.softAP(ssid, password);
+  IPAddress IP = IPAddress (06, 14, 22, 24);
+  IPAddress NMask = IPAddress (255, 255, 255, 0);
+  IPAddress myIP = WiFi.softAPIP();
+  WiFi.softAPConfig(IP, IP, NMask);
+  pinMode(4,OUTPUT);
+  digitalWrite(4,0);
+
+/***          --- Initiate webserver  ---         ***/
+
+  server.on("/display", HTTP_GET, []() {
+    String message = "Missao: " + String(missao) + "\nEstado da Missao: " + String(flag);
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/plain", message);
+  });
+
+  /* INITIALIZE ESP2SOTA LIBRARY */
+  ESP2SOTA.begin(&server);
+  server.begin();
+
+  Serial.begin(115200); 
   pinMode(BTN,INPUT);
   Serial.begin(115200);
   strip.begin();
@@ -51,7 +84,9 @@ void setup()
 
 void loop() 
 {
+
   //tim = millis();
+  server.handleClient();
   
   CAN_ID = CAN1.RXpacketBegin();
   
@@ -150,6 +185,7 @@ void loop()
     strip.fill(strip.Color(0, 0, 0), 0, strip.numPixels());
     delay(50);
     strip.show();
+    flag = 1;
     break;
   }
   if(tim + 500 <= millis())
