@@ -10,6 +10,7 @@
 #define NUM_OF_PINS 48
 
 #define BTN 34
+//#define BTN 2
 #define Accelaration 4 
 #define Skidpad 27
 #define Autocross 5
@@ -22,7 +23,7 @@ unsigned long tim = 0;
 unsigned long timeout = 0;
 unsigned long timeout_interrupt = 0;
 volatile int flag_interrupt = 0;
-
+String mission,State;
 
 const char* ssid = "ASSI_LART_T24";
 const char* password = "T24E_aut";
@@ -63,12 +64,13 @@ void setup()
 
 /***          --- Initiate webserver  ---         ***/
 
+
   server.on("/display", HTTP_GET, []() {
-    String message = "Missao: " + String(missao) + "\nEstado da Missao: " + String(flag);
+    String message = "Missao: " + mission + "\nEstado da Missao: " + String(State);
     server.sendHeader("Connection", "close");
     server.send(200, "text/plain", message);
   });
-
+  
   /* INITIALIZE ESP2SOTA LIBRARY */
   ESP2SOTA.begin(&server);
   server.begin();
@@ -84,7 +86,7 @@ void setup()
 
 void loop() 
 {
-
+  
   //tim = millis();
   server.handleClient();
   
@@ -116,15 +118,18 @@ void loop()
     emergenencia = 0;
     strip.fill(strip.Color(0, 0, 0), 0, strip.numPixels());
     strip.show();
+    State = "Autonomous system OFF";
     break;
   case 2:
     emergenencia = 0;
     strip.fill(strip.Color(150, 150, 0), 0, strip.numPixels());
     delay(50);
     strip.show();
+    State = "Autonomous system READY";
     break;
   case 3:
     emergenencia = 0;
+    State = "Autonomous system DRIVING";
     if(luz_state_3 == 0)
       {
         if(timeout + 1000 <= millis())
@@ -149,6 +154,7 @@ void loop()
       }
       break;
   case 4:
+       State = "Autonomous system EMERGENCY";
       emergenencia = 1;
       if(luz_state_4 == 0)
       {
@@ -178,6 +184,7 @@ void loop()
       strip.fill(strip.Color(0, 0, 255), 0, strip.numPixels());
       delay(50);
       strip.show(); 
+      State = "Autonomous system FINISHED";
       break;
   
   default:
@@ -186,6 +193,7 @@ void loop()
     delay(50);
     strip.show();
     flag = 1;
+    State = "UNKNOWN";
     break;
   }
   if(tim + 500 <= millis())
@@ -220,6 +228,7 @@ void loop()
     digitalWrite(Trackdrive, LOW);
     digitalWrite(EBS_test, LOW);
     digitalWrite(Inspection, LOW);
+    mission = "Manual";
     break;
   case 1:
     digitalWrite(Accelaration, HIGH);
@@ -228,6 +237,7 @@ void loop()
     digitalWrite(Trackdrive, LOW);
     digitalWrite(EBS_test, LOW);
     digitalWrite(Inspection, LOW);
+    mission = "Accelaration";
     break;
   case 2:
     digitalWrite(Accelaration, LOW);
@@ -236,6 +246,7 @@ void loop()
     digitalWrite(Trackdrive, LOW);
     digitalWrite(EBS_test, LOW);
     digitalWrite(Inspection, LOW);
+    mission = "Skidpad";
     break;
   case 3:
     digitalWrite(Accelaration, LOW);
@@ -244,6 +255,7 @@ void loop()
     digitalWrite(Trackdrive, LOW);
     digitalWrite(EBS_test, LOW);
     digitalWrite(Inspection, LOW);
+    mission = "Autocross";
     break;
   case 4:
     digitalWrite(Accelaration, LOW);
@@ -252,6 +264,7 @@ void loop()
     digitalWrite(Trackdrive, HIGH);
     digitalWrite(EBS_test, LOW);
     digitalWrite(Inspection, LOW);
+    mission = "Trackdrive";
     break;
   case 5:
     digitalWrite(Accelaration, LOW);
@@ -260,6 +273,7 @@ void loop()
     digitalWrite(Trackdrive, LOW);
     digitalWrite(EBS_test, HIGH);
     digitalWrite(Inspection, LOW);
+    mission = "EBS TEST";
     break;
   case 6:
     digitalWrite(Accelaration, LOW);
@@ -268,6 +282,7 @@ void loop()
     digitalWrite(Trackdrive, LOW);
     digitalWrite(EBS_test, LOW);
     digitalWrite(Inspection, HIGH);
+    mission = "Inspection";
     break;
   default:
     digitalWrite(Accelaration, LOW);
@@ -276,9 +291,14 @@ void loop()
     digitalWrite(Trackdrive, LOW);
     digitalWrite(EBS_test, LOW);
     digitalWrite(Inspection, LOW);
+    mission = "ERROR";
     break;
   }
   Serial.println(missao);
+    String message = "Missao: " + mission + "\nEstado da Missao: " + String(State);
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/plain", message);
+
   
 }
 
